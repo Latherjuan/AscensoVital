@@ -20,6 +20,8 @@ from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets_avatar_hd_completo"
+# Ronda 2: piezas dibujadas sobre la silueta (Metodo A). Si existen, reemplazan a las de SRC y se usan alineadas.
+SRC2 = ROOT / "assets_avatar_ronda2"
 OUT = ROOT / "ascension-vital" / "assets" / "avatar"
 FRAME = 1024  # coordenadas del maniqui
 
@@ -30,6 +32,8 @@ HEAD_CX = (HEAD["x0"] + HEAD["x1"]) / 2
 TORSO = dict(x0=378, x1=645, neck=462, waist=690)
 FEET = dict(x0=358, x1=665, bottom=975)
 FIST_L = (318, 700)  # puno a la izquierda de la imagen (escudo)
+FEET_L = (358, 482)  # pie izquierdo (en la imagen): x0, x1 a la altura del tobillo
+FEET_R = (542, 666)
 FIST_R = (706, 700)  # puno a la derecha de la imagen (arma)
 
 # Como ubicar cada pieza suelta: ancho objetivo, punto de anclaje y alineacion.
@@ -53,24 +57,24 @@ FIT = {
     "face_glasses": dict(width=HEAD_W * 0.98, x=HEAD_CX, y=HEAD["eyes"], align="center"),
     "face_freckles": dict(width=HEAD_W * 0.62, x=HEAD_CX, y=372, align="center"),
     "helm_t1": dict(width=HEAD_W * 1.08, x=HEAD_CX, y=205, align="center"),
-    "helm_t2": dict(width=HEAD_W * 1.02, x=HEAD_CX, y=228, align="center"),
+    "helm_t2": dict(width=HEAD_W * 1.08, x=HEAD_CX, y=222, align="center", split_ring=True),
     "helm_t3": dict(width=HEAD_W * 1.18, x=HEAD_CX, y=HEAD["top"] - 45, align="top"),
     "helm_t4": dict(width=HEAD_W * 0.9, x=HEAD_CX, y=HEAD["top"] + 135, align="bottom"),
     "armor_t2": dict(width=(TORSO["x1"] - TORSO["x0"]) * 1.3, x=512, y=TORSO["neck"] - 15, align="top"),
     "armor_t3": dict(width=(TORSO["x1"] - TORSO["x0"]) * 1.32, x=512, y=TORSO["neck"] - 25, align="top"),
     "armor_t4": dict(width=(TORSO["x1"] - TORSO["x0"]) * 1.05, x=512, y=TORSO["neck"] - 10, align="top"),
-    "boots_t1": dict(height=120, x=512, y=FEET["bottom"] + 4, align="bottom"),
-    "boots_t2": dict(width=(FEET["x1"] - FEET["x0"]) * 1.08, x=512, y=FEET["bottom"], align="bottom"),
-    "boots_t3": dict(width=(FEET["x1"] - FEET["x0"]) * 1.05, x=512, y=FEET["bottom"], align="bottom"),
-    "boots_t4": dict(width=(FEET["x1"] - FEET["x0"]) * 1.25, x=530, y=FEET["bottom"], align="bottom"),
+    "boots_t1": dict(boots=True, scale=0.95),
+    "boots_t2": dict(boots=True, scale=1.12),
+    "boots_t3": dict(boots=True, scale=1.0),
+    "boots_t4": dict(boots=True, scale=1.2),
     "backpack_t1": dict(width=210, x=720, y=470, align="top"),
     "backpack_t2": dict(width=210, x=720, y=470, align="top"),
     "backpack_t3": dict(width=220, x=720, y=460, align="top"),
     "backpack_t4": dict(width=220, x=720, y=460, align="top"),
-    "shield_t1": dict(height=250, x=FIST_L[0] - 10, y=FIST_L[1] - 10, align="center"),
-    "shield_t2": dict(height=240, x=FIST_L[0] - 10, y=FIST_L[1] - 10, align="center"),
-    "shield_t3": dict(height=250, x=FIST_L[0] - 10, y=FIST_L[1] - 10, align="center"),
-    "shield_t4": dict(height=230, x=FIST_L[0] - 10, y=FIST_L[1] - 10, align="center"),
+    "shield_t1": dict(height=215, x=FIST_L[0] + 8, y=FIST_L[1] - 45, align="center"),
+    "shield_t2": dict(height=205, x=FIST_L[0] + 8, y=FIST_L[1] - 45, align="center"),
+    "shield_t3": dict(height=215, x=FIST_L[0] + 8, y=FIST_L[1] - 45, align="center"),
+    "shield_t4": dict(height=200, x=FIST_L[0] + 8, y=FIST_L[1] - 45, align="center"),
     # armas: se voltean (hoja hacia arriba-derecha) y la empunadura va al puno derecho
     "weapon_t1": dict(height=250, grip=FIST_R, mirror=True),
     "weapon_t2": dict(height=320, grip=FIST_R, mirror=True),
@@ -185,7 +189,35 @@ def fix_special(name: str, a: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------- ajuste a anclas
+def place_boots(piece: np.ndarray, cfg: dict) -> Image.Image:
+    """Separa el par de botas y calza cada una en su pie (en vez de pegar el par como un bloque)."""
+    a = trim(piece)
+    cols = (a[..., 3] > 0).sum(axis=0)
+    w = a.shape[1]
+    split = int(w * 0.3 + np.argmin(cols[int(w * 0.3): int(w * 0.7)]))
+    canvas = Image.new("RGBA", (FRAME, FRAME))
+    for part, (x0, x1) in ((a[:, :split], FEET_L), (a[:, split:], FEET_R)):
+        im = Image.fromarray(trim(part))
+        tw = (x1 - x0) * cfg.get("scale", 1.0)
+        im = im.resize((round(tw), round(im.height * tw / im.width)), Image.LANCZOS)
+        canvas.alpha_composite(im, (round((x0 + x1) / 2 - im.width / 2), FEET["bottom"] + 3 - im.height))
+    return canvas
+
+
+def split_ring(full: Image.Image):
+    """Divide un aro (diadema) en mitad trasera (va detras de la cabeza) y delantera."""
+    a = np.array(full)
+    ys, _ = np.where(a[..., 3] > 0)
+    mid = (ys.min() + ys.max()) // 2
+    back, front = a.copy(), a.copy()
+    back[mid:, :, 3] = 0
+    front[:mid, :, 3] = 0
+    return Image.fromarray(back), Image.fromarray(front)
+
+
 def place(piece: np.ndarray, cfg: dict) -> Image.Image:
+    if cfg.get("boots"):
+        return place_boots(piece, cfg)
     im = Image.fromarray(trim(piece))
     if cfg.get("mirror"):
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
@@ -248,22 +280,28 @@ def main():
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     layers = {}
-    for f in sorted(SRC.glob("*.png")):
-        name = f.stem
+    sources = {f.stem: f for f in SRC.glob("*.png")}
+    round2 = {f.stem: f for f in SRC2.glob("*.png")} if SRC2.exists() else {}
+    sources.update(round2)
+    for name, f in sorted(sources.items()):
         if name in ("plantilla_silueta", "face_scar", "face_freckles", "hair_front_3") or name.endswith("_descartada"):
             continue
         clean = drop_labels(remove_background(Image.open(f)))
         clean = fix_special(name, clean)
-        if name in ALIGNED:
+        if name in ALIGNED or name in round2:
             full = Image.fromarray(clean)
         elif name in FIT:
             full = place(clean, FIT[name])
         else:
             print(f"  (sin configuracion) {name}")
             continue
+        if name in FIT and FIT[name].get("split_ring") and name not in round2:
+            back, full = split_ring(full)
+            layers[f"{name}_back"] = back
+            rasterize(back, args.size, native=False).save(OUT / f"{name}_back.png", optimize=True)
         layers[name] = full
-        rasterize(full, args.size, native=name in ALIGNED).save(OUT / f"{name}.png", optimize=True)
-        print(f"  {name}.png")
+        rasterize(full, args.size, native=name in ALIGNED or name in round2).save(OUT / f"{name}.png", optimize=True)
+        print(f"  {name}.png{' (ronda 2)' if name in round2 else ''}")
     # variantes que reutilizan otra imagen fuente con otro ajuste
     for name, cfg in FIT.items():
         if "src" in cfg and (SRC / f"{cfg['src']}.png").exists():

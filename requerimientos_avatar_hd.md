@@ -157,6 +157,38 @@ El tier 1 es humilde y el tier 4 es legendario, con brillo dorado o místico.
 
 ---
 
+## 1B. Ronda 2 — Equipo "realmente puesto" (rehacer con Método A)
+
+**Por qué:** en la primera ronda solo la túnica y `armor_t1` se dibujaron sobre la silueta, y son las únicas piezas que se ven *puestas*. Todo lo que vino suelto (botas, cascos, escudos, armas, armaduras t2–t4, morrales) se escala y se pega encima, y por eso se ve sobrepuesto. **Todas las piezas de esta tabla deben generarse con `plantilla_silueta.png` adjunta.**
+
+### Prompt de la ronda 2 (adjuntar `plantilla_silueta.png`)
+
+> [Frase base] La imagen adjunta es el contorno de un personaje de frente. **Equipa a este personaje con [PIEZA]**, dibujándola puesta sobre el contorno, con la forma, el tamaño y la posición exactos del cuerpo: debe verse **llevada por el personaje**, no flotando. Dibuja **solo esa pieza**: el resto del cuerpo queda vacío (magenta #FF00FF). No cambies el encuadre, la pose ni el tamaño del contorno.
+
+### Qué pedir en cada pieza
+
+| Archivo | [PIEZA] (texto para el prompt) |
+|---|---|
+| `boots_t1.png` | unas sandalias de lino con cintas **calzadas en ambos pies**, cubriendo solo los pies y los tobillos. En escala de grises |
+| `boots_t2.png` | unas botas de cuero **calzadas en ambos pies**, hasta media pantorrilla, siguiendo la forma de cada pierna. En escala de grises |
+| `boots_t3.png` | unas grebas de hierro **puestas en ambas piernas**, desde los pies hasta las rodillas |
+| `boots_t4.png` | unas botas titánicas doradas con pequeñas alas **calzadas en ambos pies**, hasta media pantorrilla |
+| `helm_t1.png` | una vincha de lino **atada alrededor de la frente**, ajustada al contorno de la cabeza, con el nudo a un costado. En escala de grises |
+| `helm_t2.png` | una diadema de bronce **puesta en la frente**, que abraza la cabeza siguiendo su curva, con una gema al centro |
+| `helm_t3.png` | un casco ceremonial de acero **puesto en la cabeza**, que cubre la cabeza y deja ver la cara (visera abierta) |
+| `helm_t4.png` | una corona dorada **apoyada sobre la cabeza** y una aureola luminosa justo encima |
+| `shield_t1.png` … `shield_t4.png` | el escudo del tier (broquel de madera / escudo redondo de bronce / escudo heráldico de acero / escudo espejo con borde dorado) **sujeto al antebrazo izquierdo del contorno (el brazo a la IZQUIERDA de la imagen)**, visto de frente y tapando parte del antebrazo |
+| `weapon_t1.png` … `weapon_t4.png` | el arma del tier (daga / espada corta / espada ancha / cetro dorado con esfera de luz) **empuñada en la mano derecha del contorno (la mano a la DERECHA de la imagen)**, con la empuñadura dentro del puño y la hoja apuntando hacia arriba y afuera. Dibuja también los dedos del puño cerrados sobre la empuñadura |
+| `armor_t2.png` | un peto de cuero endurecido con correas **puesto sobre el torso** (igual que la túnica). En escala de grises |
+| `armor_t3.png` | una cota de malla de acero con hombreras **puesta sobre el torso y los hombros** |
+| `armor_t4.png` | una armadura de placas de oro sagradas **puesta sobre el torso y los hombros** |
+| `backpack_t1.png` … `backpack_t4.png` | el morral del tier **llevado por el personaje visto de frente**: la correa cruza el pecho en diagonal (del hombro derecho de la imagen a la cadera izquierda) y la bolsa asoma a un costado de la cadera. No dibujes la espalda del personaje |
+
+> **Validación rápida:** genera primero `boots_t2`, `helm_t2`, `shield_t1` y `weapon_t2` y pásamelos. Si encajan como la túnica, produce el resto.
+> Se pueden entregar en una carpeta `assets_avatar_ronda2/` con los mismos nombres: reemplazan a los de la ronda 1.
+
+---
+
 ## 2. Otras imágenes que faltan en el juego
 
 Estas **no** llevan el maniquí de referencia. Solo la frase base y la descripción.

@@ -163,6 +163,8 @@ export function avatarDataUrl(a, { gear = null, bust = false } = {}) {
     // El morral no se dibuja en el avatar hasta tener su version frontal (correa + bolso a un costado);
     // mientras tanto se muestra solo en la pantalla de Equipo.
     hair.back,
+    // mitad trasera de aros (diadema): queda detras de la cabeza
+    gear && manifest.layers.includes(`helm_t${helm}_back`) && `helm_t${helm}_back`,
     'body_base',
     'tunic_base',
     gear && `armor_t${gear.fisiologicaArmorTier}`,
