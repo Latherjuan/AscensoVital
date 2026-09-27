@@ -416,3 +416,5 @@ body.tut-lock #app .tut-target { pointer-events: auto; position: relative; z-ind
   80% { opacity: 1; }
   100% { transform: translate(-50%, -70px); opacity: 0; }
 }
+
+.login { text-align: left; margin-top: 18px; }
