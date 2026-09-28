@@ -72,21 +72,37 @@ export class SupabaseRepository {
     this.cache = new LocalRepository(`${STORAGE_KEY}_${this.userId}`);
     this.timer = null;
     this.pending = null;
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.flushRemote(); });
+    // Varias redes de seguridad: cerrar la pestaña o pasar la app a segundo plano
+    // no espera a que termine una peticion async, asi que se intenta guardar apenas
+    // se detecta cualquiera de estas señales, no solo al final.
+    const flush = () => this.flushRemote();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
+    setInterval(() => { if (this.pending) flush(); }, 5000);
   }
 
   async load() {
     const sb = await getClient();
     const { data, error } = await sb.from('app_state').select('state').eq('user_id', this.userId).maybeSingle();
+    const local = await this.cache.load();
     if (error) {
       console.warn('Sin conexion con Supabase; usando copia local', error);
-      return this.cache.load();
+      return local;
     }
-    if (data) {
-      await this.cache.save(data.state);
-      return data.state;
+    const remote = data?.state ?? null;
+    // Se guarda un sello de tiempo en cada guardado (ver save()). Si el ultimo guardado
+    // remoto nunca llego a completarse (pestaña cerrada de golpe, sin red...), la copia
+    // local de este mismo dispositivo sera mas reciente: se usa esa y se reintenta
+    // subirla, en vez de darla por perdida y arrancar desde el remoto desactualizado.
+    const localIsNewer = local && (local._savedAt ?? 0) > (remote?._savedAt ?? 0);
+    const winner = localIsNewer || !remote ? local : remote;
+    if (localIsNewer && Object.keys(local.profiles ?? {}).length) this.writeRemote(local); // reintento en segundo plano
+    if (winner) {
+      await this.cache.save(winner);
+      return winner;
     }
-    // Primera vez con esta cuenta: se suben las partidas jugadas en modo local
+    // Primera vez con esta cuenta y sin copia local: se suben las partidas jugadas
+    // en modo local (antes de iniciar sesion) de este navegador, si las hay.
     const legacy = await new LocalRepository().load();
     if (legacy && Object.keys(legacy.profiles ?? {}).length) {
       await this.writeRemote(legacy);
@@ -96,10 +112,11 @@ export class SupabaseRepository {
   }
 
   async save(state) {
-    await this.cache.save(state);
-    this.pending = state;
+    const stamped = { ...state, _savedAt: Date.now() };
+    await this.cache.save(stamped);
+    this.pending = stamped;
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.flushRemote(), 1000);
+    this.timer = setTimeout(() => this.flushRemote(), 350);
   }
 
   flushRemote() {
