@@ -247,13 +247,14 @@ export function applyPendingWalk() {
 }
 
 // ---------- Quests y jefes (Modulo 5) ----------
-export function createQuest({ kind, title, days, dosesPerDay }) {
+export function createQuest({ kind, title, days, dosesPerDay, pillars }) {
   const tpl = BOSS_TEMPLATES[kind];
+  const chosenPillars = pillars?.length ? pillars : tpl.pillars;
   store.update((s) => {
     const p = active(s);
     p.quests.unshift({
       id: uid(), title: title || tpl.example, bossName: tpl.bossName, bossKind: kind,
-      bossTotalHp: 100 * days, bossCurrentHp: 100 * days, status: 'active', pillars: tpl.pillars,
+      bossTotalHp: 100 * days, bossCurrentHp: 100 * days, status: 'active', pillars: chosenPillars,
       days, dosesPerDay, startDate: today(p), doseLog: {},
     });
   });
@@ -304,6 +305,20 @@ export function removeQuest(questId) {
     const p = active(s);
     p.quests = p.quests.filter((q) => q.id !== questId);
     p.venusInbox = p.venusInbox.filter((m) => m.questId !== questId);
+  });
+}
+
+// ---------- Backup y restauracion ----------
+/** Copia completa del estado (todas las partidas de este dispositivo/cuenta), lista para descargar. */
+export function exportBackup() {
+  return structuredClone(store.getState());
+}
+/** Reemplaza el estado completo por uno restaurado desde un archivo de backup. */
+export function importBackup(data) {
+  const migrated = migrate(data);
+  store.update((s) => {
+    Object.keys(s).forEach((k) => delete s[k]);
+    Object.assign(s, migrated);
   });
 }
 

@@ -272,6 +272,16 @@ img.mini { width: 24px; height: 24px; object-fit: contain; }
 .boss-option { background: rgba(0, 0, 0, .3); border: 3px solid var(--edge); border-radius: 4px; padding: 8px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 16px; }
 .boss-option img { height: 80px; image-rendering: pixelated; }
 .boss-option.sel { border-color: var(--gold); background: rgba(242, 198, 74, .15); }
+.pillar-check { border: 2px solid var(--c, var(--edge)); border-radius: 3px; padding: 4px 8px; font-size: 16px; }
+.pillar-check input { width: auto; accent-color: var(--c, var(--gold)); }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab {
+  font-family: var(--pixel-font); font-size: 9px; color: var(--muted);
+  background: rgba(0, 0, 0, .3); border: 2px solid var(--edge); border-radius: 4px;
+  padding: 8px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.tab.on { color: var(--ink); border-color: var(--gold); background: rgba(242, 198, 74, .15); }
 
 /* ---------- Caminata ---------- */
 .ladder { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }

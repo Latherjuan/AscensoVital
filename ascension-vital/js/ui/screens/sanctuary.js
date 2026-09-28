@@ -1,8 +1,9 @@
 // Santuario Central (Modulo 1): pedestal con avatar, nivel general por cuello de botella y hexagono.
+import * as A from '../../game/actions.js';
 import { PILLARS, PILLAR_IDS, MAX_SHIELDS } from '../../game/content.js';
 import { overall, walkBoss } from '../../game/rules.js';
 import { avatarImg, hexagon, pillarRow } from '../components.js';
-import { esc } from '../fx.js';
+import { esc, toast, confirmModal } from '../fx.js';
 
 export const background = 'sanctuary';
 
@@ -50,7 +51,52 @@ export function render({ profile: p, today }) {
         <h2 class="title-sm">Los 6 Pilares</h2>
         ${PILLAR_IDS.map((pid) => pillarRow(p, pid, { weak: o.min !== o.max && o.weakest.includes(pid) })).join('')}
       </section>
+
+      <section class="panel backup-panel">
+        <h2 class="title-sm">Copia de seguridad</h2>
+        <p class="muted small">Descarga un archivo con todo tu progreso, o restáuralo si lo necesitas recuperar.</p>
+        <div class="row gap wrap">
+          <button class="btn" data-action="exportBackup">⬇ Exportar copia</button>
+          <button class="btn" data-action="importBackup">⬆ Restaurar copia</button>
+        </div>
+        <input type="file" accept="application/json" class="backup-file-input" hidden>
+      </section>
     </div>`;
 }
 
-export const actions = {};
+export function mount(root, ctx) {
+  root.querySelector('.backup-file-input')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+      if (!data || typeof data !== 'object' || !data.profiles || typeof data.profiles !== 'object') throw new Error('formato inválido');
+    } catch {
+      toast('Ese archivo no es una copia de seguridad válida.');
+      return;
+    }
+    const count = Object.keys(data.profiles).length;
+    const ok = await confirmModal(`Vas a restaurar una copia con ${count} partida${count === 1 ? '' : 's'}. Reemplazará todo tu progreso actual en este dispositivo. ¿Continuar?`, { ok: 'Restaurar', danger: true });
+    if (!ok) return;
+    A.importBackup(data);
+    toast('Copia de seguridad restaurada.');
+    ctx.rerender();
+  });
+}
+
+export const actions = {
+  exportBackup: () => {
+    const data = A.exportBackup();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const stamp = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ascension-vital-backup-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Copia de seguridad descargada.');
+  },
+  importBackup: () => { document.querySelector('.backup-file-input')?.click(); },
+};
