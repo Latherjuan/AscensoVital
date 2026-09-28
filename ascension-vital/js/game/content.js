@@ -47,21 +47,33 @@ export const DEFAULT_HABITS = [
 
 export const TUTORIAL_MISSION = { id: 'tutorial', title: '5 estiramientos', pillar: 'fisica', xp: 25 };
 
-/** Plantillas de jefe para quests (Modulo 5). Sprites en assets/bosses/{kind}_{0-4}.png */
-export const BOSS_TEMPLATES = {
+/**
+ * Plantillas de jefe para quests (Modulo 5), usadas como respaldo cuando no hay conexion con
+ * Supabase (modo local, sin sesion, o fallo de red). Con conexion, el catalogo real viene de la
+ * tabla `boss_templates` (ver js/game/bossCatalog.js) para poder agregar jefes nuevos sin tocar
+ * codigo. Sprites en assets/bosses/{kind}_{0-4}.png.
+ */
+export const DEFAULT_BOSS_TEMPLATES = {
   titan: {
-    bossName: 'Titán de Roca y Musgo', pillars: ['fisica', 'fisiologica'], bg: 'battle',
+    bossName: 'Titán de Roca y Musgo', pillars: ['fisica', 'fisiologica'],
     example: 'Rutina de movimiento', states: ['Sano', 'Grietas', 'Inclinado', 'Arrodillado', 'Colapsado en flor'],
   },
   dragon: {
-    bossName: 'Dragón de la Procrastinación', pillars: ['prosperidad', 'consciencia'], bg: 'battle',
+    bossName: 'Dragón de la Procrastinación', pillars: ['prosperidad', 'consciencia'],
     example: 'Preparar el examen / proyecto', states: ['Sano', 'Escamas sueltas', 'Alas rasgadas', 'Aliento débil', 'Estatua de luz'],
   },
   wraith: {
-    bossName: 'Espectro de la Carga Mental', pillars: ['consciencia', 'autoestima'], bg: 'battle',
+    bossName: 'Espectro de la Carga Mental', pillars: ['consciencia', 'autoestima'],
     example: 'Soltar pendientes acumulados', states: ['Sano', 'Capa rasgada', 'Máscara rota', 'Desvaneciéndose', 'Disipado'],
   },
 };
+
+/** Quest por tareas (Modulo 5): 1 XP por minuto asignado, remate final al 80% del tiempo hecho,
+ *  recompensa extra al vencerlo, y bono si se termina antes de la fecha objetivo. */
+export const TASK_XP_PER_MINUTE = 1;
+export const QUEST_FINISH_RATIO = 0.8;
+export const QUEST_DEFEAT_BONUS = 0.6;
+export const EARLY_FINISH_BONUS = 0.15;
 
 /** Modulo 2: 10 jefes diarios de caminata, de 10 a 60 minutos. */
 // Cada golem tiene su propio material (filtro de color sobre el sprite del titan) y crece con el nivel.

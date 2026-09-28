@@ -1,12 +1,14 @@
 // Acciones del juego: mutan el estado a traves del store y devuelven eventos para la UI
 // (xp ganada, subidas de nivel, cofres...). La UI decide como animarlos.
 import {
-  PILLAR_IDS, DEFAULT_HABITS, TUTORIAL_MISSION, BOSS_TEMPLATES, WALK_BOSSES, PHASES, PHASE_ORDER,
+  PILLAR_IDS, DEFAULT_HABITS, TUTORIAL_MISSION, WALK_BOSSES, PHASES, PHASE_ORDER,
   HUMILITY_BONUS, HUMILITY_CHARGES, MAX_SHIELDS, INACTIVITY_DAYS, SPIRIT_PILLS, EQUIPMENT,
+  QUEST_DEFEAT_BONUS, EARLY_FINISH_BONUS, TASK_XP_PER_MINUTE,
 } from './content.js';
 import {
-  today, addDays, levelInfo, overall, questProgress, damagePerDose, walkBoss, habitStats, tierOf,
+  today, addDays, daysBetween, levelInfo, overall, questTaskStats, walkBoss, habitStats, tierOf,
 } from './rules.js';
+import { bossTemplates } from './bossCatalog.js';
 
 let store;
 export function bindStore(s) { store = s; }
@@ -26,6 +28,14 @@ export function migrate(saved) {
     p.inventory ??= [];
     p.devDayOffset ??= 0;
     p.lastActiveDate ??= null;
+    // El sistema de jefes paso de dosis diarias a tareas con tiempo asignado: las quests del
+    // formato viejo (sin `tasks`) no son compatibles y se descartan al cargar.
+    const before = p.quests ?? [];
+    p.quests = before.filter((q) => Array.isArray(q.tasks));
+    if (p.quests.length !== before.length) {
+      const keepIds = new Set(p.quests.map((q) => q.id));
+      p.venusInbox = p.venusInbox.filter((m) => !m.questId || keepIds.has(m.questId));
+    }
   }
   return state;
 }
@@ -246,57 +256,79 @@ export function applyPendingWalk() {
   });
 }
 
-// ---------- Quests y jefes (Modulo 5) ----------
-export function createQuest({ kind, title, days, dosesPerDay, pillars }) {
-  const tpl = BOSS_TEMPLATES[kind];
+// ---------- Quests y jefes (Modulo 5): tareas con tiempo asignado, no dosis diarias ----------
+export function createQuest({ kind, title, pillars, targetDate, tasks }) {
+  const tpl = bossTemplates()[kind];
   const chosenPillars = pillars?.length ? pillars : tpl.pillars;
   store.update((s) => {
     const p = active(s);
     p.quests.unshift({
       id: uid(), title: title || tpl.example, bossName: tpl.bossName, bossKind: kind,
-      bossTotalHp: 100 * days, bossCurrentHp: 100 * days, status: 'active', pillars: chosenPillars,
-      days, dosesPerDay, startDate: today(p), doseLog: {},
+      status: 'active', pillars: chosenPillars, startDate: today(p), targetDate,
+      tasks: tasks.map((t) => ({ id: uid(), title: t.title, minutes: t.minutes, done: false, doneAt: null })),
     });
   });
 }
-export function applyDose(questId) {
-  return act((p, ev) => {
-    const q = p.quests.find((x) => x.id === questId);
-    const day = today(p);
+export function addQuestTask(questId, { title, minutes }) {
+  store.update((s) => {
+    const q = active(s).quests.find((x) => x.id === questId);
     if (!q || q.status !== 'active') return;
-    const prog = questProgress(q, day);
-    if (prog.todayDoses >= q.dosesPerDay || day > prog.endDate) return;
-    q.doseLog[day] = prog.todayDoses + 1;
-    const dmg = Math.min(q.bossCurrentHp, damagePerDose(q));
-    q.bossCurrentHp -= dmg;
-    ev.damage = dmg;
-    q.pillars.forEach((pillar) => grantXp(p, pillar, 8, ev));
-    if (q.bossCurrentHp <= 0) defeatQuest(p, q, ev);
+    q.tasks.push({ id: uid(), title, minutes, done: false, doneAt: null });
   });
 }
-/** Remate final: disponible con >= 80% de dosis cumplidas. */
+/** Solo se pueden quitar tareas pendientes: una tarea ya hecha ya otorgo su XP y su golpe. */
+export function removeQuestTask(questId, taskId) {
+  store.update((s) => {
+    const q = active(s).quests.find((x) => x.id === questId);
+    if (!q) return;
+    q.tasks = q.tasks.filter((t) => t.id !== taskId || t.done);
+  });
+}
+export function completeQuestTask(questId, taskId) {
+  return act((p, ev) => {
+    const q = p.quests.find((x) => x.id === questId);
+    const task = q?.tasks.find((t) => t.id === taskId);
+    if (!q || !task || task.done || q.status !== 'active') return;
+    const before = questTaskStats(q, today(p));
+    task.done = true;
+    task.doneAt = today(p);
+    const after = questTaskStats(q, today(p));
+    ev.damage = Math.round((after.ratio - before.ratio) * 100);
+    const xp = task.minutes * TASK_XP_PER_MINUTE;
+    q.pillars.forEach((pillar) => grantXp(p, pillar, Math.round(xp / q.pillars.length), ev));
+    if (after.allDone) defeatQuest(p, q, ev, after);
+  });
+}
+/** Remate final: disponible con >= 80% del tiempo cumplido; las tareas pendientes quedan sin hacer. */
 export function finishingBlow(questId) {
   return act((p, ev) => {
     const q = p.quests.find((x) => x.id === questId);
-    if (!q || !questProgress(q, today(p)).canFinish) return;
-    ev.damage = q.bossCurrentHp;
-    q.bossCurrentHp = 0;
-    defeatQuest(p, q, ev);
+    const stats = q && questTaskStats(q, today(p));
+    if (!stats?.canFinish) return;
+    ev.damage = Math.round((1 - stats.ratio) * 100);
+    defeatQuest(p, q, ev, stats);
   });
 }
-function defeatQuest(p, q, ev) {
+function defeatQuest(p, q, ev, stats) {
   q.status = 'completed';
-  const reward = 40 * q.days;
+  const early = today(p) < q.targetDate;
+  const reward = Math.round(stats.totalMinutes * QUEST_DEFEAT_BONUS * (early ? 1 + EARLY_FINISH_BONUS : 1));
   q.pillars.forEach((pillar) => grantXp(p, pillar, Math.round(reward / q.pillars.length), ev));
   ev.chest = { item: `Tesoro de ${q.bossName}` };
   ev.defeated = true;
+  ev.early = early;
 }
 export function retryQuest(questId) {
   store.update((s) => {
     const p = active(s);
     const q = p.quests.find((x) => x.id === questId);
     if (!q) return;
-    Object.assign(q, { status: 'active', bossCurrentHp: q.bossTotalHp, startDate: today(p), doseLog: {} });
+    const span = Math.max(1, daysBetween(q.startDate, q.targetDate));
+    const start = today(p);
+    Object.assign(q, {
+      status: 'active', startDate: start, targetDate: addDays(start, span),
+      tasks: q.tasks.map((t) => ({ ...t, done: false, doneAt: null })),
+    });
     p.venusInbox = p.venusInbox.filter((m) => m.questId !== questId);
   });
 }
@@ -347,10 +379,10 @@ export function processDay() {
     if (shieldsUsed) pushMsg(p, 'info', `${shieldsUsed === 1 ? 'Un Escudo de Racha te protegió un día' : `${shieldsUsed} Escudos de Racha te protegieron ${shieldsUsed} días`} sin actividad. Descansar también es parte del camino. 💗`);
     if (streakLost) pushMsg(p, 'info', 'Tu racha se reinició, y está bien. No perdiste nada de lo aprendido: todo tu XP sigue contigo. ¿Empezamos de nuevo con algo pequeño?');
     for (const q of p.quests) {
-      const prog = questProgress(q, t);
-      if (q.status === 'active' && t > prog.endDate && !prog.canFinish) {
+      const stats = questTaskStats(q, t);
+      if (q.status === 'active' && t > q.targetDate && !stats.canFinish) {
         q.status = 'failed';
-        pushMsg(p, 'questFailed', `${q.bossName} se retiró a descansar... y tú también mereces hacerlo. Lograste ${prog.done} de ${prog.totalDoses} dosis. ¿Lo intentamos otra vez con un ritmo más amable?`, { questId: q.id });
+        pushMsg(p, 'questFailed', `${q.bossName} se retiró a descansar... y tú también mereces hacerlo. Lograste ${stats.doneMinutes} de ${stats.totalMinutes} min. ¿Lo intentamos otra vez con un ritmo más amable?`, { questId: q.id });
       }
     }
     const dormant = [];

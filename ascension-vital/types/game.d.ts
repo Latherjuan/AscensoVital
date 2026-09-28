@@ -3,7 +3,9 @@
 
 export type PillarId = 'fisica' | 'fisiologica' | 'social' | 'autoestima' | 'consciencia' | 'prosperidad';
 export type HabitPhase = 'semilla' | 'consolidacion' | 'maestria';
-export type BossKind = 'titan' | 'dragon' | 'wraith';
+// Antes era una union cerrada; ahora el catalogo de jefes es dinamico (tabla boss_templates de
+// Supabase, con respaldo local en DEFAULT_BOSS_TEMPLATES), asi que cualquier id de texto vale.
+export type BossKind = string;
 
 /** Capa A: identidad base editable. */
 export interface AvatarLayerA {
@@ -31,19 +33,24 @@ export interface EquipmentGear {
   prosperidadWeaponTier: number; // 1-4
 }
 
+export interface QuestTask {
+  id: string;
+  title: string;
+  minutes: number; // tiempo asignado; se convierte 1:1 en XP al completarla
+  done: boolean;
+  doneAt: string | null; // YYYY-MM-DD
+}
+
 export interface Quest {
   id: string;
   title: string;
   bossName: string;
   bossKind: BossKind;
-  bossTotalHp: number; // 100 HP por dia de duracion
-  bossCurrentHp: number;
   status: 'active' | 'completed' | 'failed';
   pillars: PillarId[];
-  days: number;
-  dosesPerDay: number;
   startDate: string; // YYYY-MM-DD
-  doseLog: Record<string, number>;
+  targetDate: string; // YYYY-MM-DD; el HP del jefe se deriva del % de minutos completados
+  tasks: QuestTask[];
 }
 
 export interface Habit {

@@ -30,7 +30,9 @@ Física, Fisiológica, Social, Autoestima, Consciencia y Prosperidad.
   - Credenciales en `ascension-vital/js/config.js` (URL + clave `anon`, pública por diseño).
     Nunca uses ni pidas la `service_role`.
   - Tabla `public.app_state` (`user_id` uuid PK → `auth.users`, `state` jsonb, `updated_at`),
-    con RLS: cada usuario solo lee y escribe su fila. Esquema en `supabase/schema.sql`.
+    con RLS: cada usuario solo lee y escribe su fila. Esquema en `ascension-vital/supabase/schema.sql`.
+  - Tabla `public.boss_templates` (catálogo de jefes, de solo lectura pública): ver sección 4
+    "Cómo agregar un jefe nuevo" más abajo.
   - Autenticación por correo y contraseña, con confirmación de correo activada.
   - SMTP propio con Gmail (`smtp.gmail.com:587`, contraseña de aplicación) para que lleguen los
     correos de confirmación y de "olvidé mi contraseña". El SMTP por defecto de Supabase no los entregaba.
@@ -48,10 +50,13 @@ ascension-vital/
   js/core/store.js            store estilo Zustand (getState/update/subscribe/flush/setRepository)
   js/core/repository.js       LocalRepository (localStorage, clave ascension_vital_state_v1)
   js/core/cloud.js            cliente Supabase + SupabaseRepository (misma interfaz load/save)
-  js/game/content.js          constantes: pilares, fases, hábitos por defecto, jefes, WALK_BOSSES,
-                              Ho'oponopono, píldoras, rangos del avatar
-  js/game/rules.js            cálculos puros: niveles, cuello de botella, tiers, estado de jefes
-  js/game/actions.js          todas las mutaciones del juego (hábitos, jefes, caminata, días, dev)
+  js/game/content.js          constantes: pilares, fases, hábitos por defecto, DEFAULT_BOSS_TEMPLATES
+                              (respaldo local de jefes), WALK_BOSSES, Ho'oponopono, píldoras, avatar
+  js/game/bossCatalog.js      catálogo de jefes: usa la tabla boss_templates de Supabase si hay
+                              conexión, y si no cae en DEFAULT_BOSS_TEMPLATES
+  js/game/rules.js            cálculos puros: niveles, cuello de botella, tiers, estado de jefes,
+                              questTaskStats (avance de una quest por tareas)
+  js/game/actions.js          todas las mutaciones del juego (hábitos, jefes/tareas, caminata, días, dev)
   js/ui/avatar.js             compone el avatar por capas PNG y tiñe en tiempo real
   js/ui/components.js         avatarImg, hexágono, filas de pilar...
   js/ui/screens/*.js          una pantalla por módulo (ver abajo)
@@ -60,7 +65,7 @@ ascension-vital/
 tools/process_avatar.py       limpia fondos/textos del arte fuente y alinea cada pieza a las anclas
                               del maniquí (tabla FIT); soporta assets_avatar_ronda2/
 tools/process_assets.py       recorta los sprites de assets_optimizados_snes_rpg
-supabase/schema.sql
+ascension-vital/supabase/schema.sql
 requerimientos_avatar_hd.md   especificación de arte del avatar (Ronda 1 y Ronda 2)
 ```
 
@@ -83,8 +88,15 @@ falta que el usuario confirme que ya no pierde avance.
 - **Racha** con hasta 3 escudos que se consumen en días de inactividad en lugar de romperla.
 - **Autocompasión / humildad:** reportar un tropiezo da +25 % de XP en las 3 misiones siguientes.
 - **Ho'oponopono:** 4 frases y la palabra clave "Flor de loto"; píldoras espirituales diarias.
-- **Jefes (quests):** varios días, 5 estados de salud, durabilidad diaria de 100 HP, remate final al
-  llegar al 80 %. Tipos: titán, dragón, espectro.
+- **Jefes (quests):** se desglosan en **tareas** con tiempo asignado (minutos) y una **fecha
+  objetivo**, en vez de días/dosis fijas. Cada tarea completada golpea al jefe según su peso en
+  minutos sobre el total (5 estados de salud, igual que antes) y da 1 XP por minuto repartido
+  entre los pilares elegidos al crear la quest. Se pueden agregar o quitar tareas mientras la
+  quest sigue activa (solo las pendientes se pueden quitar; una tarea ya hecha no se puede
+  deshacer). Remate final disponible al completar el 80 % del tiempo total, dejando las tareas
+  pendientes sin hacer. Recompensa extra al vencerlo (60 % del tiempo total en XP) con un bono
+  del 15 % si se termina antes de la fecha objetivo. El catálogo de jefes (nombre, pilares por
+  defecto, sprites) es dinámico — ver "Cómo agregar un jefe nuevo" abajo.
 - **Caminata:** 10 gólems diarios progresivos (10 → 60 min), cada uno con material y escala propios;
   tarjeta del próximo rival; minutos acumulados se aplican como "ráfaga".
 - **Equipo (Capa B):** 6 piezas, una por pilar, en 4 tiers según el nivel del pilar:
@@ -92,6 +104,31 @@ falta que el usuario confirme que ya no pierde avance.
   casco/diadema (Consciencia), arma (Prosperidad).
 - **Avatar (Capa A):** piel 1–6, peinado 0–8 (0 = calvo), color de pelo 1–6, rasgo facial 0–6,
   color de túnica 1–3.
+
+### Cómo agregar un jefe nuevo (sin tocar código ni hacer deploy)
+
+El catálogo vive en la tabla `public.boss_templates` de Supabase (solo lectura pública; sin
+políticas de insert/update/delete, así que solo se edita desde el dashboard de Supabase como
+project owner — nunca desde la app). Pasos, **una vez creada la tabla** (ver más abajo):
+
+1. **Sprites:** en Supabase → Storage → bucket `boss-sprites` (público), sube 5 imágenes en una
+   carpeta con el `id` del jefe: `boss-sprites/<id>/0.png` … `/4.png` (0 = sano, 4 = vencido;
+   mismo criterio que los jefes actuales en `assets/bosses/`). Copia la URL pública de esa carpeta.
+2. **Fila nueva:** Supabase → Table Editor → `boss_templates` → Insert row:
+   - `id`: identificador corto único, ej. `phoenix` (debe coincidir con la carpeta del paso 1).
+   - `boss_name`, `example` (placeholder del campo "Tu reto"), `pillars` (array de 1-2 ids de
+     pilar: `fisica`, `fisiologica`, `social`, `autoestima`, `consciencia`, `prosperidad`),
+     `states` (array de 5 textos cortos para cada estado de salud).
+   - `sprite_base_url`: la URL pública del paso 1.
+   - `sort_order`: número para el orden en el selector (opcional).
+3. Recarga la web: el jefe nuevo aparece en "Invocar un jefe" en el siguiente `reload`, sin
+   commit, sin push, sin esperar el rebuild de GitHub Pages.
+
+**Configuración inicial (solo una vez, y solo si no se ha hecho):** correr el SQL de
+`ascension-vital/supabase/schema.sql` (sección `boss_templates`) en el SQL Editor de Supabase, y
+crear el bucket público `boss-sprites` en Storage. Los 3 jefes actuales (titán, dragón, espectro)
+ya quedan sembrados por ese SQL con `sprite_base_url = null`, así que siguen usando los PNG que
+ya están en `assets/bosses/` sin tener que resubir nada.
 
 ## 5. Estado del avatar
 
@@ -118,25 +155,30 @@ falta que el usuario confirme que ya no pierde avance.
 2. **Idle del avatar.** La animación de reposo actual se ve rara. Se rehará junto con el punto 1,
    también congelado por ahora.
 
-### Implementado en esta sesión
+### Implementado
 
 3. **Backup y restauración del progreso.** Panel "Copia de seguridad" en el Santuario
    (`js/ui/screens/sanctuary.js`): botón para **exportar** el estado completo (todas las partidas del
    dispositivo/cuenta) a un `.json` descargable, y botón para **restaurar** un archivo así (confirma
    antes de sobrescribir). Lógica en `A.exportBackup` / `A.importBackup` (`js/game/actions.js`).
 
-4. **Elegir los pilares que alimenta un jefe.** El modal "Invocar un jefe" (`js/ui/screens/bosses.js`)
-   ahora tiene checkboxes de los 6 pilares, precargados con los del tipo de jefe pero editables; hay
-   que dejar al menos uno marcado. `A.createQuest` acepta `pillars` y la XP de dosis/victoria se
-   reparte entre los elegidos (ya lo hacía por `q.pillars.length`, sin cambios ahí).
+4. **Elegir los pilares que alimenta un jefe.** El modal "Invocar un jefe" tiene checkboxes de los
+   6 pilares, precargados según el tipo de jefe pero editables; hay que dejar al menos uno marcado.
 
-5. **Panel de jefes derrotados.** La pantalla de Jefes ahora tiene pestañas "Activos" / "Jefes
-   derrotados"; la crónica de batallas (vencidos y retirados) vive solo en la segunda pestaña, la
-   lista de activos queda limpia.
+5. **Panel de jefes derrotados.** La pantalla de Jefes tiene pestañas "Activos" / "Jefes derrotados";
+   la crónica de batallas (vencidos y retirados) vive solo en la segunda pestaña.
+
+6. **Sistema de jefes por tareas (reemplaza el de dosis diarias) + catálogo de jefes en Supabase.**
+   Ver el detalle en la sección 4 de arriba y en "Cómo agregar un jefe nuevo". Las quests activas
+   con el formato viejo (`dosesPerDay`) se descartan automáticamente al cargar (`migrate()` en
+   `js/game/actions.js`) — decisión tomada con el usuario porque solo había datos de prueba.
+   **Pendiente de que el usuario corra una vez** el SQL de `boss_templates` en Supabase y cree el
+   bucket `boss-sprites` (ver receta arriba) para que el catálogo remoto tenga efecto; mientras
+   tanto la app sigue funcionando con el catálogo local de respaldo (titán, dragón, espectro).
 
 Verificado manualmente en el navegador (modo local, `CLOUD_ENABLED` desactivado temporalmente solo
-para la prueba): crear partida, invocar un jefe con pilares mixtos, aplicar dosis, rematarlo, verlo
-en "Jefes derrotados", exportar backup y restaurarlo con datos de otra partida simulada.
+para la prueba). Falta probar el sistema de tareas y el catálogo remoto una vez el usuario haya
+corrido el SQL nuevo.
 
 También queda pendiente que el usuario confirme que el progreso ya se conserva entre sesiones y
 dispositivos tras el arreglo de sincronización (commit `bb2d810`).

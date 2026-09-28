@@ -61,6 +61,18 @@ export async function signOut() {
   await sb.auth.signOut();
 }
 
+/** Catalogo de jefes (tabla de solo lectura, editable desde el dashboard de Supabase). */
+export async function fetchBossTemplates() {
+  const sb = await getClient();
+  const { data, error } = await sb
+    .from('boss_templates')
+    .select('id, boss_name, pillars, example, states, sprite_base_url, sort_order')
+    .eq('active', true)
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
 /**
  * Guarda el AppState completo en la fila del usuario (tabla app_state).
  * Mantiene una copia local por usuario para arrancar rapido y resistir cortes de red.

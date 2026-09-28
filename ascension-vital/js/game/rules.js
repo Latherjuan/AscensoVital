@@ -1,5 +1,7 @@
 // Reglas puras del juego (sin efectos): niveles, armonia, tiers, jefes, fechas.
-import { PILLAR_IDS, TIER_LEVELS, EQUIPMENT, WALK_BOSSES, PROMOTION_DAYS, PHASE_ORDER } from './content.js';
+import {
+  PILLAR_IDS, TIER_LEVELS, EQUIPMENT, WALK_BOSSES, PROMOTION_DAYS, PHASE_ORDER, QUEST_FINISH_RATIO,
+} from './content.js';
 
 // ---------- Fechas (con desplazamiento de dias para Dev Controls) ----------
 export function dateKey(d) {
@@ -88,17 +90,17 @@ export function bossState(current, total) {
   return 3;
 }
 
-export function questProgress(quest, todayKey) {
-  const totalDoses = quest.days * quest.dosesPerDay;
-  const done = Object.values(quest.doseLog).reduce((a, b) => a + b, 0);
-  const dayIndex = Math.min(daysBetween(quest.startDate, todayKey), quest.days - 1);
-  const endDate = addDays(quest.startDate, quest.days - 1);
-  const todayDoses = quest.doseLog[todayKey] ?? 0;
-  // Remate final: se habilita al cumplir >= 80% de las dosis totales
-  const canFinish = quest.status === 'active' && quest.bossCurrentHp > 0 && done >= Math.ceil(totalDoses * 0.8);
-  return { totalDoses, done, dayIndex, endDate, todayDoses, canFinish, ratio: done / totalDoses };
+/** Estadisticas de una quest por tareas: minutos totales/hechos, avance y si se puede rematar. */
+export function questTaskStats(quest, todayKey) {
+  const totalMinutes = quest.tasks.reduce((a, t) => a + t.minutes, 0) || 1;
+  const doneMinutes = quest.tasks.filter((t) => t.done).reduce((a, t) => a + t.minutes, 0);
+  const ratio = doneMinutes / totalMinutes;
+  const pending = quest.tasks.some((t) => !t.done);
+  const allDone = quest.tasks.length > 0 && !pending;
+  const canFinish = quest.status === 'active' && pending && ratio >= QUEST_FINISH_RATIO;
+  const daysLeft = daysBetween(todayKey, quest.targetDate);
+  return { totalMinutes, doneMinutes, ratio, canFinish, allDone, daysLeft };
 }
-export const damagePerDose = (quest) => Math.round(100 / quest.dosesPerDay);
 
 // ---------- Caminata ----------
 export function walkBoss(profile) {

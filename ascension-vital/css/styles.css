@@ -283,6 +283,18 @@ img.mini { width: 24px; height: 24px; object-fit: contain; }
 }
 .tab.on { color: var(--ink); border-color: var(--gold); background: rgba(242, 198, 74, .15); }
 
+.task-list { text-align: left; margin: 10px 0; }
+.task-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, .1); }
+.task-row .check { flex: 1; min-width: 0; }
+.task-row.done { opacity: .55; }
+.task-row.done .check { text-decoration: line-through; }
+.task-add { text-align: left; margin-bottom: 10px; }
+.task-add input { width: auto; }
+.task-min-input { max-width: 80px; }
+.task-builder-row { margin-bottom: 6px; }
+.task-builder-row input { width: auto; }
+.tb-min { max-width: 80px; }
+
 /* ---------- Caminata ---------- */
 .ladder { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
 .rung { text-align: center; padding: 4px 2px; border: 2px solid transparent; border-radius: 4px; font-size: 16px; }

@@ -6,6 +6,7 @@ import * as A from './game/actions.js';
 import { today, overall } from './game/rules.js';
 import { avatarImg } from './ui/components.js';
 import { preloadAvatar } from './ui/avatar.js';
+import { loadBossTemplates } from './game/bossCatalog.js';
 import { CLOUD_ENABLED } from './config.js';
 import * as cloud from './core/cloud.js';
 import * as login from './ui/screens/login.js';
@@ -317,7 +318,7 @@ function askNewPassword() {
 }
 
 async function boot() {
-  await preloadAvatar();
+  await Promise.all([preloadAvatar(), loadBossTemplates()]);
   if (CLOUD_ENABLED) {
     cloud.onPasswordRecovery(askNewPassword);
     const s = await cloud.getSession().catch(() => null);
