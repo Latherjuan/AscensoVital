@@ -1,7 +1,9 @@
 // Reglas puras del juego (sin efectos): niveles, armonia, tiers, jefes, fechas.
 import {
-  PILLAR_IDS, TIER_LEVELS, EQUIPMENT, WALK_BOSSES, PROMOTION_DAYS, PHASE_ORDER, QUEST_FINISH_RATIO,
+  PILLAR_IDS, TIER_LEVELS, EQUIPMENT, PROMOTION_DAYS, PHASE_ORDER, QUEST_FINISH_RATIO,
+  WALK_BASE_MINUTES, WALK_STEP_MINUTES,
 } from './content.js';
+import { bossTemplates } from './bossCatalog.js';
 
 // ---------- Fechas (con desplazamiento de dias para Dev Controls) ----------
 export function dateKey(d) {
@@ -103,8 +105,26 @@ export function questTaskStats(quest, todayKey) {
 }
 
 // ---------- Caminata ----------
-export function walkBoss(profile) {
-  return WALK_BOSSES[Math.min(profile.walk.level, WALK_BOSSES.length) - 1];
+/** Rivales del dia: los boss_templates del pilar 'fisica', con costo en minutos por posicion. */
+export function walkDailyBosses() {
+  return Object.entries(bossTemplates())
+    .filter(([, tpl]) => tpl.pillars.includes('fisica'))
+    .map(([id, tpl], i) => ({ id, minutes: WALK_BASE_MINUTES + i * WALK_STEP_MINUTES, ...tpl }));
+}
+/** Subconjunto de jefes cuya suma de minutos es la maxima posible sin pasarse del presupuesto
+ *  (fuerza bruta: trivial para el puñado de rivales de caminata que hay). */
+export function bestWalkCombo(bosses, budgetMinutes) {
+  let best = { total: 0, ids: [] };
+  const n = bosses.length;
+  for (let mask = 1; mask < (1 << n); mask++) {
+    let total = 0;
+    const ids = [];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) { total += bosses[i].minutes; ids.push(bosses[i].id); }
+    }
+    if (total <= budgetMinutes && total > best.total) best = { total, ids };
+  }
+  return best;
 }
 
 // ---------- Rampas de habitos ----------

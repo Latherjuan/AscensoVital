@@ -296,14 +296,12 @@ img.mini { width: 24px; height: 24px; object-fit: contain; }
 .tb-min { max-width: 80px; }
 
 /* ---------- Caminata ---------- */
-.ladder { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.ladder { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
 .rung { text-align: center; padding: 4px 2px; border: 2px solid transparent; border-radius: 4px; font-size: 16px; }
-.rung img { width: 100%; max-width: 44px; }
+.rung img { width: 100%; max-width: 64px; }
 .rung.current { border-color: var(--gold); background: rgba(242, 198, 74, .12); }
+.rung.beaten { border-color: var(--ok); background: rgba(111, 227, 107, .12); }
 .rung.beaten span { color: var(--ok); }
-.next-rival { display: flex; align-items: center; gap: 14px; justify-content: center; margin: 8px 0; padding: 8px; border: 2px dashed var(--gold); border-radius: 4px; }
-.next-golem { height: 90px; }
-@media (max-width: 600px) { .ladder { grid-template-columns: repeat(5, 1fr); } }
 
 /* ---------- Espiritu ---------- */
 .spirit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

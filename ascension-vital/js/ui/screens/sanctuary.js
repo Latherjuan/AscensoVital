@@ -1,7 +1,7 @@
 // Santuario Central (Modulo 1): pedestal con avatar, nivel general por cuello de botella y hexagono.
 import * as A from '../../game/actions.js';
 import { PILLARS, PILLAR_IDS, MAX_SHIELDS } from '../../game/content.js';
-import { overall, walkBoss } from '../../game/rules.js';
+import { overall, walkDailyBosses } from '../../game/rules.js';
 import { avatarImg, hexagon, pillarRow } from '../components.js';
 import { esc, toast, confirmModal } from '../fx.js';
 
@@ -11,7 +11,7 @@ export function render({ profile: p, today }) {
   const o = overall(p);
   const log = p.log[today] ?? { missions: [], walkMinutes: 0 };
   const habitsDone = p.habits.filter((h) => h.doneDates.includes(today)).length;
-  const boss = walkBoss(p);
+  const walkTotal = walkDailyBosses().reduce((a, b) => a + b.minutes, 0) || 1;
   const weakNames = o.weakest.map((w) => PILLARS[w].name).join(', ');
   return `
     <div class="sanctuary">
@@ -42,7 +42,7 @@ export function render({ profile: p, today }) {
       <section class="panel today-panel">
         <h2 class="title-sm">Hoy</h2>
         <a class="today-item" href="#/misiones"><img class="pixel mini" src="assets/ui/chest_closed.png" alt=""> Misiones <b>${habitsDone}/${p.habits.length}</b></a>
-        <a class="today-item" href="#/caminata"><img class="pixel mini" src="assets/equipment/boots_t2.png" alt=""> Caminata <b>${log.walkMinutes ?? 0}/${boss.minutes} min</b>${p.walk.pendingMinutes ? ` <span class="badge">+${p.walk.pendingMinutes} pendientes</span>` : ''}</a>
+        <a class="today-item" href="#/caminata"><img class="pixel mini" src="assets/equipment/boots_t2.png" alt=""> Caminata <b>${log.walkMinutes ?? 0}/${walkTotal} min</b></a>
         <a class="today-item" href="#/jefes"><img class="pixel mini" src="assets/bosses/dragon_0.png" alt=""> Jefes activos <b>${p.quests.filter((q) => q.status === 'active').length}</b></a>
         <a class="today-item" href="#/espiritu"><img class="pixel mini" src="assets/ui/lotus.png" alt=""> Píldoras espirituales <b>${(log.spiritPills ?? []).length}</b></a>
       </section>

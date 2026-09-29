@@ -51,12 +51,14 @@ ascension-vital/
   js/core/repository.js       LocalRepository (localStorage, clave ascension_vital_state_v1)
   js/core/cloud.js            cliente Supabase + SupabaseRepository (misma interfaz load/save)
   js/game/content.js          constantes: pilares, fases, hábitos por defecto, DEFAULT_BOSS_TEMPLATES
-                              (respaldo local de jefes), WALK_BOSSES, Ho'oponopono, píldoras, avatar
+                              (respaldo local de jefes), costos de Caminata, Ho'oponopono, píldoras, avatar
   js/game/bossCatalog.js      catálogo de jefes: usa la tabla boss_templates de Supabase si hay
                               conexión, y si no cae en DEFAULT_BOSS_TEMPLATES
   js/game/rules.js            cálculos puros: niveles, cuello de botella, tiers, estado de jefes,
-                              questTaskStats (avance de una quest por tareas)
+                              questTaskStats (avance de una quest por tareas), walkDailyBosses/
+                              bestWalkCombo (rivales de Caminata y su seleccion optima)
   js/game/actions.js          todas las mutaciones del juego (hábitos, jefes/tareas, caminata, días, dev)
+  js/core/motion.js           sensor de pasos (devicemotion), global y persistente en toda la app
   js/ui/avatar.js             compone el avatar por capas PNG y tiñe en tiempo real
   js/ui/components.js         avatarImg, hexágono, filas de pilar...
   js/ui/screens/*.js          una pantalla por módulo (ver abajo)
@@ -97,8 +99,17 @@ falta que el usuario confirme que ya no pierde avance.
   pendientes sin hacer. Recompensa extra al vencerlo (60 % del tiempo total en XP) con un bono
   del 15 % si se termina antes de la fecha objetivo. El catálogo de jefes (nombre, pilares por
   defecto, sprites) es dinámico — ver "Cómo agregar un jefe nuevo" abajo.
-- **Caminata:** 10 gólems diarios progresivos (10 → 60 min), cada uno con material y escala propios;
-  tarjeta del próximo rival; minutos acumulados se aplican como "ráfaga".
+- **Caminata:** varios rivales **simultáneos** — los `boss_templates` del pilar `fisica` (arte real,
+  ya no gólems recoloreados), con un costo en minutos por posición (10, 20, 30… `walkDailyBosses` en
+  `rules.js`). El tablero se reinicia cada día. Los minutos caminados se registran al instante
+  (1 XP/min a Física); al cerrar el día, `processDay()` vence el subconjunto de rivales de **mayor
+  valor total posible** sin pasarse de lo caminado ese día (`bestWalkCombo`, fuerza bruta), otorga
+  XP extra por cada uno y un cofre combinado. La pantalla muestra una vista previa en vivo de a
+  quién vencerías con lo caminado hasta ahora (se confirma solo al cambiar de día). El sensor de
+  pasos (`js/core/motion.js`) es global: se activa una vez, la preferencia se guarda
+  (`settings.stepSensor`) y sigue contando en cualquier pantalla mientras la pestaña esté abierta
+  (no hay forma de contar pasos con la pestaña cerrada o la pantalla apagada sin convertir el
+  juego en una app nativa/híbrida — se descartó por ahora).
 - **Equipo (Capa B):** 6 piezas, una por pilar, en 4 tiers según el nivel del pilar:
   botas (Física), armadura (Fisiológica), morral (Social), escudo (Autoestima),
   casco/diadema (Consciencia), arma (Prosperidad).
@@ -172,13 +183,33 @@ ya están en `assets/bosses/` sin tener que resubir nada.
    Ver el detalle en la sección 4 de arriba y en "Cómo agregar un jefe nuevo". Las quests activas
    con el formato viejo (`dosesPerDay`) se descartan automáticamente al cargar (`migrate()` en
    `js/game/actions.js`) — decisión tomada con el usuario porque solo había datos de prueba.
-   **Pendiente de que el usuario corra una vez** el SQL de `boss_templates` en Supabase y cree el
-   bucket `boss-sprites` (ver receta arriba) para que el catálogo remoto tenga efecto; mientras
-   tanto la app sigue funcionando con el catálogo local de respaldo (titán, dragón, espectro).
+
+7. **Caminata rediseñada: varios rivales simultáneos + sensor global.** Ver el detalle en la
+   sección 4. Se quitó `WALK_BOSSES`/la escalera de gólems recoloreados; `p.walk` (level,
+   pendingMinutes, defeatedOn) desaparece del perfil (los objetos viejos con esos campos quedan
+   ahí sin usarse, inofensivos). `DayLog.walkDefeated` guarda el resultado de cada día ya resuelto.
+
+**Estado del catálogo de jefes en Supabase** (proyecto `vjfgshondpbcbwqgucqd` — el usuario ya
+confirmó que antes había corrido el SQL en un proyecto de Supabase equivocado; hay que verificar
+que todo lo de abajo quedó en el proyecto correcto):
+   - ✅ Confirmado por API: 3 originales (titán, dragón, espectro) + 6 de Autoestima (demon, mirror,
+     death, snake, armor_ae, blacknight) + 5 de Consciencia (overtink, memory_fog, doubt,
+     distraction_siren, rigid_dogma) + dragón actualizado con sprite propio = 14 filas, todas con
+     sprites verificados (HTTP 200) en el bucket `boss-sprites`.
+   - ⏳ **Sin confirmar todavía**: el SQL de 6 jefes de **Física** (`bot`, `lazy_golem`, `rhino_task`,
+     `comfort_blob`, `fatigue_ghost`, `couch_drain` — carpetas listas en
+     `Enemies/_subir_a_supabase_2/`, SQL en `insertar_jefes_fisica.sql`) y el de 6+6 de **Social**/
+     **Fisiológica** (`Enemies/_subir_a_supabase_3/insertar_jefes_social_fisiologica.sql`). Falta
+     que el usuario suba esas carpetas al bucket y corra esos dos SQL en el proyecto correcto, y
+     que alguien verifique por API (`select id,sprite_base_url from boss_templates`) que quedaron
+     las 32 filas totales. **La Caminata depende directamente de que el batch de Física se corra**:
+     mientras tanto solo aparece `titan` como rival (es el único física-boss ya sembrado).
 
 Verificado manualmente en el navegador (modo local, `CLOUD_ENABLED` desactivado temporalmente solo
-para la prueba). Falta probar el sistema de tareas y el catálogo remoto una vez el usuario haya
-corrido el SQL nuevo.
+para la prueba): sistema de tareas de jefes completo, y Caminata completo (registro de minutos,
+vista previa en vivo, cierre de día con `processDay`, cofre combinado, panel "Ayer", reinicio
+diario del tablero). No se pudo probar el catálogo remoto completo (32 jefes) ni el sensor de
+pasos real (requiere un dispositivo con acelerómetro).
 
 También queda pendiente que el usuario confirme que el progreso ya se conserva entre sesiones y
 dispositivos tras el arreglo de sincronización (commit `bb2d810`).

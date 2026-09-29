@@ -69,6 +69,7 @@ export interface DayLog {
   missions: string[]; // ids de habitos completados
   xp: number;
   walkMinutes: number;
+  walkDefeated?: string[]; // ids de boss_templates vencidos ese dia (Caminata), fijo tras processDay
   slipReflected?: boolean;
   spiritPills?: string[];
 }
@@ -96,7 +97,6 @@ export interface Profile {
   habits: Habit[];
   quests: Quest[];
   log: Record<string, DayLog>;
-  walk: { level: number; pendingMinutes: number; defeatedOn?: string };
   venusInbox: VenusMessage[];
   lastProcessedDate: string;
   devDayOffset: number;

@@ -1,12 +1,13 @@
 // Acciones del juego: mutan el estado a traves del store y devuelven eventos para la UI
 // (xp ganada, subidas de nivel, cofres...). La UI decide como animarlos.
 import {
-  PILLAR_IDS, DEFAULT_HABITS, TUTORIAL_MISSION, WALK_BOSSES, PHASES, PHASE_ORDER,
+  PILLAR_IDS, DEFAULT_HABITS, TUTORIAL_MISSION, PHASES, PHASE_ORDER,
   HUMILITY_BONUS, HUMILITY_CHARGES, MAX_SHIELDS, INACTIVITY_DAYS, SPIRIT_PILLS, EQUIPMENT,
   QUEST_DEFEAT_BONUS, EARLY_FINISH_BONUS, TASK_XP_PER_MINUTE,
 } from './content.js';
 import {
-  today, addDays, daysBetween, levelInfo, overall, questTaskStats, walkBoss, habitStats, tierOf,
+  today, addDays, daysBetween, levelInfo, overall, questTaskStats, walkDailyBosses, bestWalkCombo,
+  habitStats, tierOf,
 } from './rules.js';
 import { bossTemplates } from './bossCatalog.js';
 
@@ -60,7 +61,6 @@ function newProfile(name, avatar) {
     })),
     quests: [],
     log: {},
-    walk: { level: 1, pendingMinutes: 0 },
     venusInbox: [],
     lastProcessedDate: now,
     devDayOffset: 0,
@@ -228,31 +228,12 @@ export function completeMeditation(minutes) {
   });
 }
 
-// ---------- Caminata (Modulo 2) ----------
+// ---------- Caminata (Modulo 2): varios rivales del dia, se resuelve al cerrar el dia ----------
+/** Registra minutos caminados (sensor o Dev Controls): suma directo al dia y da 1 XP/min. */
 export function addWalkMinutes(minutes) {
-  store.update((s) => { active(s).walk.pendingMinutes += minutes; });
-}
-/** Aplica los minutos acumulados en segundo plano como rafaga de golpes. */
-export function applyPendingWalk() {
   return act((p, ev) => {
-    const minutes = p.walk.pendingMinutes;
-    if (!minutes) return;
-    const day = today(p);
-    const log = dayLog(p, day);
-    const boss = walkBoss(p);
-    const before = log.walkMinutes;
-    log.walkMinutes += minutes;
-    p.walk.pendingMinutes = 0;
-    ev.walk = { hits: minutes, before, after: log.walkMinutes, boss };
+    dayLog(p, today(p)).walkMinutes += minutes;
     grantXp(p, 'fisica', minutes, ev, { humility: false });
-    if (p.walk.defeatedOn !== day && log.walkMinutes >= boss.minutes) {
-      p.walk.defeatedOn = day;
-      p.walk.defeatedLevel = boss.level;
-      ev.walk.defeated = true;
-      grantXp(p, 'fisica', 20 + boss.level * 10, ev);
-      if (p.walk.level < WALK_BOSSES.length) p.walk.level++;
-      ev.chest = { item: `Botín del ${boss.name}` };
-    }
   });
 }
 
@@ -360,9 +341,25 @@ export function importBackup(data) {
  * promociones de habito (Venus pregunta a las 2 semanas) y alertas cariñosas de inactividad.
  */
 export function processDay() {
-  return act((p) => {
+  return act((p, ev) => {
     const t = today(p);
     if (p.lastProcessedDate >= t) return;
+    // Caminata: resuelve cada dia ya cerrado (el subconjunto de rivales de mayor valor que
+    // alcancen los minutos caminados ese dia), una sola vez, y lo deja fijo en el historial.
+    const walkBosses = walkDailyBosses();
+    const defeatedNames = [];
+    for (let d = p.lastProcessedDate; d < t; d = addDays(d, 1)) {
+      const log = p.log[d];
+      if (!log || log.walkDefeated || !walkBosses.length) continue;
+      const combo = bestWalkCombo(walkBosses, log.walkMinutes ?? 0);
+      log.walkDefeated = combo.ids;
+      combo.ids.forEach((id) => {
+        const boss = walkBosses.find((b) => b.id === id);
+        grantXp(p, 'fisica', boss.minutes, ev);
+        defeatedNames.push(boss.bossName);
+      });
+    }
+    if (defeatedNames.length) ev.chest = { item: `Botín de: ${defeatedNames.join(', ')}` };
     // Racha: cada dia vacio consume un escudo o reinicia la racha (sin restar XP nunca)
     let shieldsUsed = 0;
     let streakLost = false;

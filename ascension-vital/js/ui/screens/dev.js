@@ -23,14 +23,13 @@ export function render({ profile: p, today, state }) {
       </section>
       <section class="panel">
         <h2 class="title-sm">Acelerómetro simulado</h2>
-        <p class="muted">Se acumulan como “pendientes” y se aplican como ráfaga al abrir Caminata.</p>
+        <p class="muted">Se suman de inmediato a la caminata de hoy; el jefe vencido se resuelve al cerrar el día (+1 día).</p>
         <div class="row gap wrap">
           <button class="btn" data-action="walk" data-min="5">+5 min</button>
           <button class="btn" data-action="walk" data-min="10">+10 min</button>
           <button class="btn" data-action="walk" data-min="30">+30 min</button>
           <button class="btn" data-action="walk" data-min="${Math.round(1000 / STEPS_PER_MINUTE)}">+1000 pasos</button>
         </div>
-        <p>Pendientes: <b>${p.walk.pendingMinutes} min</b> · Nivel de gólem: <b>${p.walk.level}</b></p>
       </section>
       <section class="panel">
         <h2 class="title-sm">XP por pilar</h2>
@@ -60,7 +59,12 @@ export const actions = {
     await ctx.play(ev);
   },
   fast: (el, ctx) => { A.setSetting('fastTime', el.checked); ctx.rerender(); },
-  walk: (el, ctx) => { A.addWalkMinutes(Number(el.dataset.min)); toast(`+${el.dataset.min} min de caminata pendientes.`); ctx.rerender(); },
+  walk: async (el, ctx) => {
+    const ev = A.addWalkMinutes(Number(el.dataset.min));
+    toast(`+${el.dataset.min} min de caminata hoy.`);
+    ctx.rerender();
+    await ctx.play(ev);
+  },
   xp: async (el, ctx) => { const rect = el.getBoundingClientRect(); const ev = A.devAddXp(el.dataset.pillar, 100); ctx.rerender(); await ctx.play(ev, rect); },
   tutorial: (_el, ctx) => { A.restartTutorial(); ctx.go('santuario'); },
   reset: async (_el, ctx) => {

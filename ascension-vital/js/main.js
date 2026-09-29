@@ -7,6 +7,7 @@ import { today, overall } from './game/rules.js';
 import { avatarImg } from './ui/components.js';
 import { preloadAvatar } from './ui/avatar.js';
 import { loadBossTemplates } from './game/bossCatalog.js';
+import { enableStepSensor } from './core/motion.js';
 import { CLOUD_ENABLED } from './config.js';
 import * as cloud from './core/cloud.js';
 import * as login from './ui/screens/login.js';
@@ -327,8 +328,12 @@ async function boot() {
   } else {
     await startGame();
   }
-  // la musica requiere un gesto del usuario
-  document.addEventListener('pointerdown', () => setMusic(store.getState().settings.music), { once: true });
+  // la musica y el sensor de pasos (iOS) requieren un gesto del usuario para arrancar
+  document.addEventListener('pointerdown', () => {
+    const s = store.getState().settings;
+    setMusic(s.music);
+    if (s.stepSensor) enableStepSensor();
+  }, { once: true });
   setInterval(() => {
     const p = ctx().profile;
     if (p && p.lastProcessedDate < today(p)) render();

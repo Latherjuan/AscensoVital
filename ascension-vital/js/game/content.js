@@ -75,27 +75,13 @@ export const QUEST_FINISH_RATIO = 0.8;
 export const QUEST_DEFEAT_BONUS = 0.6;
 export const EARLY_FINISH_BONUS = 0.15;
 
-/** Modulo 2: 10 jefes diarios de caminata, de 10 a 60 minutos. */
-// Cada golem tiene su propio material (filtro de color sobre el sprite del titan) y crece con el nivel.
-const GOLEMS = [
-  ['Gólem de Musgo', 'none'],
-  ['Gólem de Arena', 'hue-rotate(-55deg) saturate(1.4) brightness(1.1)'],
-  ['Gólem de Hielo', 'hue-rotate(115deg) saturate(1.3) brightness(1.25)'],
-  ['Gólem de Lava', 'hue-rotate(-100deg) saturate(2.4) brightness(1.05)'],
-  ['Gólem de Amatista', 'hue-rotate(175deg) saturate(1.6)'],
-  ['Gólem de Obsidiana', 'grayscale(1) brightness(0.55) contrast(1.4)'],
-  ['Gólem de Cristal', 'hue-rotate(80deg) saturate(1.8) brightness(1.3)'],
-  ['Gólem de Sombra', 'hue-rotate(210deg) saturate(1.6) brightness(0.6)'],
-  ['Gólem de Oro', 'sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.2)'],
-  ['Titán Ancestral', 'grayscale(1) brightness(1.5) contrast(1.15) drop-shadow(0 0 10px #fff3b0)'],
-];
-export const WALK_BOSSES = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60].map((minutes, i) => ({
-  level: i + 1,
-  minutes,
-  name: GOLEMS[i][0],
-  filter: GOLEMS[i][1],
-  scale: 0.8 + i * 0.045,
-}));
+/** Modulo 2 (Caminata): los rivales del dia son los boss_templates del pilar 'fisica'.
+ *  Cada uno recibe un costo en minutos segun su posicion: base + i*paso (ver walkDailyBosses
+ *  en rules.js), asi que agregar un fisica-boss nuevo en Supabase suma un rival mas sin tocar
+ *  codigo. Se resuelve una vez al dia: se vence el subconjunto de mayor valor que alcancen los
+ *  minutos caminados (bestWalkCombo en rules.js), no solo "el primero que se alcance". */
+export const WALK_BASE_MINUTES = 10;
+export const WALK_STEP_MINUTES = 10;
 export const STEPS_PER_MINUTE = 100;
 
 export const HOOPONOPONO = ['Lo siento', 'Perdóname', 'Gracias', 'Te amo'];
