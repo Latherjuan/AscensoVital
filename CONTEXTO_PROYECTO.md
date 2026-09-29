@@ -189,27 +189,20 @@ ya están en `assets/bosses/` sin tener que resubir nada.
    pendingMinutes, defeatedOn) desaparece del perfil (los objetos viejos con esos campos quedan
    ahí sin usarse, inofensivos). `DayLog.walkDefeated` guarda el resultado de cada día ya resuelto.
 
-**Estado del catálogo de jefes en Supabase** (proyecto `vjfgshondpbcbwqgucqd` — el usuario ya
-confirmó que antes había corrido el SQL en un proyecto de Supabase equivocado; hay que verificar
-que todo lo de abajo quedó en el proyecto correcto):
-   - ✅ Confirmado por API: 3 originales (titán, dragón, espectro) + 6 de Autoestima (demon, mirror,
-     death, snake, armor_ae, blacknight) + 5 de Consciencia (overtink, memory_fog, doubt,
-     distraction_siren, rigid_dogma) + dragón actualizado con sprite propio = 14 filas, todas con
-     sprites verificados (HTTP 200) en el bucket `boss-sprites`.
-   - ⏳ **Sin confirmar todavía**: el SQL de 6 jefes de **Física** (`bot`, `lazy_golem`, `rhino_task`,
-     `comfort_blob`, `fatigue_ghost`, `couch_drain` — carpetas listas en
-     `Enemies/_subir_a_supabase_2/`, SQL en `insertar_jefes_fisica.sql`) y el de 6+6 de **Social**/
-     **Fisiológica** (`Enemies/_subir_a_supabase_3/insertar_jefes_social_fisiologica.sql`). Falta
-     que el usuario suba esas carpetas al bucket y corra esos dos SQL en el proyecto correcto, y
-     que alguien verifique por API (`select id,sprite_base_url from boss_templates`) que quedaron
-     las 32 filas totales. **La Caminata depende directamente de que el batch de Física se corra**:
-     mientras tanto solo aparece `titan` como rival (es el único física-boss ya sembrado).
+**Estado del catálogo de jefes en Supabase** (proyecto `vjfgshondpbcbwqgucqd`): **completo, 32
+filas, verificado por API el 2026-09-28** — 3 originales (titán, dragón con sprite propio,
+espectro) + 6 de Autoestima + 5 de Consciencia + 6 de Física (`bot`, `lazy_golem`, `rhino_task`,
+`comfort_blob`, `fatigue_ghost`, `couch_drain` — estos son los rivales de Caminata) + 6 de Social
++ 6 de Fisiológica. Las 90 imágenes (18 jefes nuevos × 5 estados) responden HTTP 200 en el bucket
+`boss-sprites`. Las carpetas `Enemies/_subir_a_supabase*/` ya cumplieron su función y se pueden
+borrar cuando se quiera (no las toqué, quedaron sin trackear en git).
 
 Verificado manualmente en el navegador (modo local, `CLOUD_ENABLED` desactivado temporalmente solo
 para la prueba): sistema de tareas de jefes completo, y Caminata completo (registro de minutos,
 vista previa en vivo, cierre de día con `processDay`, cofre combinado, panel "Ayer", reinicio
-diario del tablero). No se pudo probar el catálogo remoto completo (32 jefes) ni el sensor de
-pasos real (requiere un dispositivo con acelerómetro).
+diario del tablero) — esa prueba fue con un solo física-boss local de respaldo (`titan`); falta
+confirmar en la web real que los 6 física-bosses aparecen juntos como rivales. Tampoco se pudo
+probar el sensor de pasos real (requiere un dispositivo con acelerómetro).
 
 También queda pendiente que el usuario confirme que el progreso ya se conserva entre sesiones y
 dispositivos tras el arreglo de sincronización (commit `bb2d810`).
