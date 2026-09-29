@@ -57,23 +57,35 @@ window.addEventListener('av-walk-tick', (e) => {
 export function render({ profile: p, today }) {
   const bosses = walkDailyBosses();
   const walked = p.log[today]?.walkMinutes ?? 0;
-  const totalToClearAll = bosses.reduce((a, b) => a + b.minutes, 0) || 1;
+  const totalToClearAll = bosses.length ? bosses[bosses.length - 1].minutes : 1;
   const preview = bestWalkCombo(bosses, walked);
-  const allBeaten = bosses.length > 0 && preview.ids.length === bosses.length;
-  const target = bosses.find((b) => !preview.ids.includes(b.id)) ?? bosses[bosses.length - 1];
+  const allBeaten = bosses.length > 0 && walked >= totalToClearAll;
+
+  // Cada rival resiste un tramo fijo (boss.minutes es el umbral acumulado en que cae, no un
+  // costo propio): se atraviesan en orden, asi que el objetivo es el primero cuyo umbral todavia
+  // no se supera, y su tramo va desde donde termino el umbral del anterior.
+  let target = null;
+  let targetStart = 0;
+  for (let i = 0; i < bosses.length; i++) {
+    if (walked < bosses[i].minutes) { target = bosses[i]; targetStart = i > 0 ? bosses[i - 1].minutes : 0; break; }
+  }
+  target ??= bosses[bosses.length - 1];
+
   const yesterday = addDays(today, -1);
   const yesterdayLog = p.log[yesterday];
   const sensorOn = isStepSensorOn();
 
   const arena = target ? (() => {
-    const pct = Math.min(1, walked / target.minutes);
+    const span = target.minutes - targetStart;
+    const progress = Math.max(0, Math.min(span, walked - targetStart));
+    const pct = span > 0 ? progress / span : 1;
     const st = bossState(Math.round(100 * (1 - pct)), 100);
     return `
       <div class="arena">
         <img class="pixel boss-sprite state-${st}" id="walk-arena-sprite" src="${spriteUrl(target, allBeaten ? 4 : st)}" alt="${esc(target.bossName)}">
       </div>
-      <div class="boss-name">${esc(target.bossName)} <span class="muted">· ${target.minutes}′</span></div>
-      ${bar(1 - pct, { color: pct > 0.5 ? '#f2c84b' : '#6fe36b', label: allBeaten ? '¡Vencerías a todos hoy!' : `${walked}/${target.minutes}′ para este rival`, cls: 'hp' })}`;
+      <div class="boss-name">${esc(target.bossName)} <span class="muted">· ${span}′</span></div>
+      ${bar(1 - pct, { color: pct > 0.5 ? '#f2c84b' : '#6fe36b', label: allBeaten ? '¡Vencerías a todos hoy!' : `${progress}/${span}′ para este rival`, cls: 'hp' })}`;
   })() : '<p class="muted center">Todavía no hay jefes de Física en el catálogo.</p>';
 
   return `

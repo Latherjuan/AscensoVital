@@ -105,26 +105,21 @@ export function questTaskStats(quest, todayKey) {
 }
 
 // ---------- Caminata ----------
-/** Rivales del dia: los boss_templates del pilar 'fisica', con costo en minutos por posicion. */
+/** Rivales del dia: los boss_templates del pilar 'fisica', en fila. `minutes` es el umbral
+ *  acumulado de minutos caminados que hace falta para llegar a vencer a ese rival (cada uno
+ *  resiste un tramo de WALK_STEP_MINUTES: el primero de 1 a 10, el segundo de 11 a 20, etc.),
+ *  no un costo propio a sumar con los demas. */
 export function walkDailyBosses() {
   return Object.entries(bossTemplates())
     .filter(([, tpl]) => tpl.pillars.includes('fisica'))
     .map(([id, tpl], i) => ({ id, minutes: WALK_BASE_MINUTES + i * WALK_STEP_MINUTES, ...tpl }));
 }
-/** Subconjunto de jefes cuya suma de minutos es la maxima posible sin pasarse del presupuesto
- *  (fuerza bruta: trivial para el puñado de rivales de caminata que hay). */
+/** Rivales ya vencidos con el presupuesto de minutos caminados: como cada uno resiste un tramo
+ *  fijo y se atraviesan en orden, son simplemente los que ya superaron su umbral acumulado. */
 export function bestWalkCombo(bosses, budgetMinutes) {
-  let best = { total: 0, ids: [] };
-  const n = bosses.length;
-  for (let mask = 1; mask < (1 << n); mask++) {
-    let total = 0;
-    const ids = [];
-    for (let i = 0; i < n; i++) {
-      if (mask & (1 << i)) { total += bosses[i].minutes; ids.push(bosses[i].id); }
-    }
-    if (total <= budgetMinutes && total > best.total) best = { total, ids };
-  }
-  return best;
+  const ids = bosses.filter((b) => budgetMinutes >= b.minutes).map((b) => b.id);
+  const total = ids.length ? bosses[ids.length - 1].minutes : 0;
+  return { total, ids };
 }
 
 // ---------- Rampas de habitos ----------
