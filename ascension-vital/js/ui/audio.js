@@ -56,6 +56,12 @@ export function sfx(name) {
   try { SFX[name]?.(); } catch { /* audio no disponible */ }
 }
 
+/** Vibracion tactil (solo Android; iOS/Safari no implementa la Vibration API). */
+export function vibrate(pattern) {
+  if (!enabled) return;
+  try { navigator.vibrate?.(pattern); } catch { /* no disponible */ }
+}
+
 // Bucle de musica de santuario: arpegio suave en triangulo + bajo.
 const MELODY = [392, 494, 587, 494, 440, 523, 659, 523, 349, 440, 523, 440, 392, 494, 587, 740];
 const BASS = [98, 98, 110, 110, 87, 87, 98, 98];

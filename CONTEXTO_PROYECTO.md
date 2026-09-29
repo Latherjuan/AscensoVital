@@ -109,7 +109,13 @@ falta que el usuario confirme que ya no pierde avance.
   pasos (`js/core/motion.js`) es global: se activa una vez, la preferencia se guarda
   (`settings.stepSensor`) y sigue contando en cualquier pantalla mientras la pestaña esté abierta
   (no hay forma de contar pasos con la pestaña cerrada o la pantalla apagada sin convertir el
-  juego en una app nativa/híbrida — se descartó por ahora).
+  juego en una app nativa/híbrida — se descartó por ahora). Cada minuto detectado dispara un
+  evento `'av-walk-tick'` (ver `addWalkMinutes` en `actions.js` y `motion.js`) que la pantalla de
+  Caminata anima **solo si está a la vista** (golpe, `floatText`, sonido y vibración — la
+  vibración no funciona en iPhone, Safari no implementa la Vibration API); si el usuario está en
+  otra pantalla el evento no hace nada visible, para no interrumpirle un formulario a medio
+  llenar. Hay un botón "Simular 1 min caminado" en la propia pantalla para probar el efecto o
+  registrar caminata sin acelerómetro.
 - **Equipo (Capa B):** 6 piezas, una por pilar, en 4 tiers según el nivel del pilar:
   botas (Física), armadura (Fisiológica), morral (Social), escudo (Autoestima),
   casco/diadema (Consciencia), arma (Prosperidad).

@@ -229,11 +229,21 @@ export function completeMeditation(minutes) {
 }
 
 // ---------- Caminata (Modulo 2): varios rivales del dia, se resuelve al cerrar el dia ----------
-/** Registra minutos caminados (sensor o Dev Controls): suma directo al dia y da 1 XP/min. */
+/**
+ * Registra minutos caminados (sensor o Dev Controls): suma directo al dia y da 1 XP/min.
+ * Ademas informa en `ev.walkHit` que rivales entrarian ahora en la mejor combinacion posible
+ * (vista previa en vivo; el vencimiento real se confirma al cerrar el dia en processDay).
+ */
 export function addWalkMinutes(minutes) {
   return act((p, ev) => {
-    dayLog(p, today(p)).walkMinutes += minutes;
+    const log = dayLog(p, today(p));
+    const bosses = walkDailyBosses();
+    const before = bestWalkCombo(bosses, log.walkMinutes);
+    log.walkMinutes += minutes;
     grantXp(p, 'fisica', minutes, ev, { humility: false });
+    const after = bestWalkCombo(bosses, log.walkMinutes);
+    const newlyBeaten = after.ids.filter((id) => !before.ids.includes(id));
+    ev.walkHit = { minutes, newlyBeaten };
   });
 }
 

@@ -24,7 +24,10 @@ function onMotion(e) {
     steps++;
     const el = document.getElementById('step-count');
     if (el) el.textContent = steps;
-    if (steps % STEPS_PER_MINUTE === 0) A.addWalkMinutes(1);
+    if (steps % STEPS_PER_MINUTE === 0) {
+      const ev = A.addWalkMinutes(1);
+      window.dispatchEvent(new CustomEvent('av-walk-tick', { detail: ev }));
+    }
   } else if (mag < 10.2) {
     below = true;
   }
