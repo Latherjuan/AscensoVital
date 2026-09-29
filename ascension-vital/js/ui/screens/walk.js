@@ -59,14 +59,26 @@ export function render({ profile: p, today }) {
   const walked = p.log[today]?.walkMinutes ?? 0;
   const totalToClearAll = bosses.reduce((a, b) => a + b.minutes, 0) || 1;
   const preview = bestWalkCombo(bosses, walked);
-  const allBeaten = bosses.length > 0 && preview.ids.length === bosses.length;
-  const target = bosses.find((b) => !preview.ids.includes(b.id)) ?? bosses[bosses.length - 1];
+  const allBeaten = bosses.length > 0 && walked >= totalToClearAll;
+
+  // La arena muestra el avance en orden, un rival a la vez (aunque el combo que realmente se
+  // vence al cerrar el dia -`preview`- pueda saltarse alguno por ser mas valioso otro): cada
+  // rival de la lista necesita `minutes` adicionales, acumulados desde donde quedo el anterior.
+  let cumulative = 0;
+  let target = null;
+  let targetStart = 0;
+  for (const b of bosses) {
+    if (walked < cumulative + b.minutes) { target = b; targetStart = cumulative; break; }
+    cumulative += b.minutes;
+  }
+  target ??= bosses[bosses.length - 1];
+
   const yesterday = addDays(today, -1);
   const yesterdayLog = p.log[yesterday];
   const sensorOn = isStepSensorOn();
 
   const arena = target ? (() => {
-    const progress = walked - preview.total;
+    const progress = Math.max(0, walked - targetStart);
     const pct = Math.min(1, progress / target.minutes);
     const st = bossState(Math.round(100 * (1 - pct)), 100);
     return `
@@ -74,7 +86,7 @@ export function render({ profile: p, today }) {
         <img class="pixel boss-sprite state-${st}" id="walk-arena-sprite" src="${spriteUrl(target, allBeaten ? 4 : st)}" alt="${esc(target.bossName)}">
       </div>
       <div class="boss-name">${esc(target.bossName)} <span class="muted">· ${target.minutes}′</span></div>
-      ${bar(1 - pct, { color: pct > 0.5 ? '#f2c84b' : '#6fe36b', label: allBeaten ? '¡Vencerías a todos hoy!' : `${walked}/${target.minutes}′ para este rival`, cls: 'hp' })}`;
+      ${bar(1 - pct, { color: pct > 0.5 ? '#f2c84b' : '#6fe36b', label: allBeaten ? '¡Vencerías a todos hoy!' : `${progress}/${target.minutes}′ para este rival`, cls: 'hp' })}`;
   })() : '<p class="muted center">Todavía no hay jefes de Física en el catálogo.</p>';
 
   return `
