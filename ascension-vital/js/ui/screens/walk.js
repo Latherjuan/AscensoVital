@@ -6,13 +6,15 @@
 // golpe, vibracion y vista previa de a quien vencerias.
 import * as A from '../../game/actions.js';
 import { STEPS_PER_MINUTE } from '../../game/content.js';
-import { walkDailyBosses, bestWalkCombo, bossState, addDays } from '../../game/rules.js';
+import { walkDailyBosses, bestWalkCombo, addDays } from '../../game/rules.js';
 import { bar, screenHeader } from '../components.js';
 import { esc, toast, floatText } from '../fx.js';
 import { isStepSensorOn, getSteps, enableStepSensor, disableStepSensor } from '../../core/motion.js';
 import { sfx, vibrate } from '../audio.js';
 
 export const background = 'battle';
+
+const HP_FRAMES = 5; // 5 estados de sprite: 0 (sano) .. 4 (derrotado)
 
 let lastCtx = null;
 
@@ -79,7 +81,9 @@ export function render({ profile: p, today }) {
     const span = target.minutes - targetStart;
     const progress = Math.max(0, Math.min(span, walked - targetStart));
     const pct = span > 0 ? progress / span : 1;
-    const st = bossState(Math.round(100 * (1 - pct)), 100);
+    // Se deteriora en pasos fijos (tramo / 5 minutos por frame), no por porcentaje: asi el
+    // frame 4 queda visible los ultimos minutos del tramo en vez de solo en el instante final.
+    const st = span > 0 ? Math.min(HP_FRAMES - 1, Math.floor(progress / (span / HP_FRAMES))) : HP_FRAMES - 1;
     return `
       <div class="arena">
         <img class="pixel boss-sprite state-${st}" id="walk-arena-sprite" src="${spriteUrl(target, allBeaten ? 4 : st)}" alt="${esc(target.bossName)}">
