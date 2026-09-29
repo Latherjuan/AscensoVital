@@ -82,6 +82,23 @@ export interface VenusMessage {
   questId?: string;
 }
 
+export interface Contact {
+  id: string;
+  name: string;
+  phone: string; // solo digitos, formato internacional sin '+'
+  avatar: AvatarLayerA; // se sustituira por el avatar del sprite sheet de contactos
+  createdAt: string;
+}
+
+export interface Interaction {
+  id: string;
+  contactId: string;
+  kind: 'message' | 'call';
+  date: string; // YYYY-MM-DD (dia de juego)
+  at: string;
+  xp: number;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -96,6 +113,8 @@ export interface Profile {
   inventory: string[]; // ej. 'tunica_novicio'
   habits: Habit[];
   quests: Quest[];
+  contacts: Contact[];
+  interactions: Interaction[];
   log: Record<string, DayLog>;
   venusInbox: VenusMessage[];
   lastProcessedDate: string;

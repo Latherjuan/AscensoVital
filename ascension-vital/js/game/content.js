@@ -107,3 +107,7 @@ export const HAIR_STYLE_NAMES = ['Calvo', 'Despeinado', 'Largo liso', 'Largo sal
 export const HAIR_COLOR_NAMES = ['Castaño', 'Rubio', 'Pelirrojo', 'Negro', 'Azul', 'Plata'];
 export const FEATURE_NAMES = ['Ninguno', 'Gafas', 'Barba', 'Pecas', 'Cicatriz', 'Bigote', 'Gafas y barba'];
 export const TUNIC_NAMES = ['Marrón', 'Verde', 'Azul'];
+
+// Social: XP por interaccion con un contacto (1ra vez por contacto y tipo cada dia) y tope diario.
+export const SOCIAL_XP = { message: 10, call: 25 };
+export const SOCIAL_MAX_XP_PER_DAY = 100;

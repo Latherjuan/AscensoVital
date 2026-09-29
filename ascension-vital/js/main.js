@@ -21,6 +21,7 @@ import * as missions from './ui/screens/missions.js';
 import * as bosses from './ui/screens/bosses.js';
 import * as walk from './ui/screens/walk.js';
 import * as spirit from './ui/screens/spirit.js';
+import * as social from './ui/screens/social.js';
 import * as habits from './ui/screens/habits.js';
 import * as equipment from './ui/screens/equipment.js';
 import * as dev from './ui/screens/dev.js';
@@ -34,6 +35,7 @@ const NAV = [
   { route: 'jefes', label: 'Jefes', icon: 'assets/bosses/dragon_0.png', screen: bosses },
   { route: 'caminata', label: 'Caminata', icon: 'assets/equipment/boots_t2.png', screen: walk },
   { route: 'espiritu', label: 'Espíritu', icon: 'assets/ui/lotus.png', screen: spirit },
+  { route: 'social', label: 'Social', icon: 'assets/ui/pillar_social.png', screen: social },
   { route: 'habitos', label: 'Hábitos', icon: 'assets/ui/pillar_fisiologica.png', screen: habits },
   { route: 'equipo', label: 'Equipo', icon: 'assets/equipment/weapon_t2.png', screen: equipment },
   { route: 'perfil', label: 'Perfil', icon: null, screen: create },

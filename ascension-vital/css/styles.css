@@ -438,3 +438,10 @@ body.tut-lock #app .tut-target { pointer-events: auto; position: relative; z-ind
 }
 
 .login { text-align: left; margin-top: 18px; }
+
+/* ---------- Social: fichas de contactos ---------- */
+.contact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
+.contact-card { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.contact-avatar { width: 112px; border-radius: 4px; background: rgba(0, 0, 0, .3); }
+.contact-modal { max-width: 520px; }
+.row.center { justify-content: center; }

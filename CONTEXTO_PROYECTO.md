@@ -174,6 +174,15 @@ ya están en `assets/bosses/` sin tener que resubir nada.
 
 ### Implementado
 
+8. **Social: contactos + WhatsApp/llamada (pantalla `#/social`, `js/ui/screens/social.js`).** Lista de
+   contactos por perfil (`p.contacts`: nombre, teléfono con código de país, `avatar` de Capa A) con
+   avatar editable (piel, peinado, tinte, rasgo). Por ficha: «WhatsApp» abre `wa.me/<tel>` y «Llamar»
+   usa `tel:`. Cada clic se registra en `p.interactions` y da XP de Social (`SOCIAL_XP` en
+   `content.js`: mensaje 10, llamada 25; solo la 1.ª vez por contacto y tipo cada día; tope
+   `SOCIAL_MAX_XP_PER_DAY` = 100). Es honor system: el navegador no puede saber si el mensaje se
+   envió. **Pendiente:** el usuario diseña un sprite sheet propio para avatares de contactos; solo hay
+   que reemplazar `contactAvatarUrl()` en `social.js` (y las opciones del formulario `contactForm`).
+
 3. **Backup y restauración del progreso.** Panel "Copia de seguridad" en el Santuario
    (`js/ui/screens/sanctuary.js`): botón para **exportar** el estado completo (todas las partidas del
    dispositivo/cuenta) a un `.json` descargable, y botón para **restaurar** un archivo así (confirma

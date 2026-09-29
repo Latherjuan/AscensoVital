@@ -3,7 +3,7 @@
 import {
   PILLAR_IDS, DEFAULT_HABITS, TUTORIAL_MISSION, PHASES, PHASE_ORDER,
   HUMILITY_BONUS, HUMILITY_CHARGES, MAX_SHIELDS, INACTIVITY_DAYS, SPIRIT_PILLS, EQUIPMENT,
-  QUEST_DEFEAT_BONUS, EARLY_FINISH_BONUS, TASK_XP_PER_MINUTE,
+  QUEST_DEFEAT_BONUS, EARLY_FINISH_BONUS, TASK_XP_PER_MINUTE, SOCIAL_XP, SOCIAL_MAX_XP_PER_DAY,
 } from './content.js';
 import {
   today, addDays, daysBetween, levelInfo, overall, questTaskStats, walkDailyBosses, bestWalkCombo,
@@ -29,6 +29,8 @@ export function migrate(saved) {
     p.inventory ??= [];
     p.devDayOffset ??= 0;
     p.lastActiveDate ??= null;
+    p.contacts ??= [];
+    p.interactions ??= [];
     // El sistema de jefes paso de dosis diarias a tareas con tiempo asignado: las quests del
     // formato viejo (sin `tasks`) no son compatibles y se descartan al cargar.
     const before = p.quests ?? [];
@@ -60,6 +62,8 @@ function newProfile(name, avatar) {
       id: uid(), title: h.title, pillar: h.pillar, doses: h.doses, phase: 'semilla', phaseStartDate: now, doneDates: [],
     })),
     quests: [],
+    contacts: [],
+    interactions: [],
     log: {},
     venusInbox: [],
     lastProcessedDate: now,
@@ -244,6 +248,45 @@ export function addWalkMinutes(minutes) {
     const after = bestWalkCombo(bosses, log.walkMinutes);
     const newlyBeaten = after.ids.filter((id) => !before.ids.includes(id));
     ev.walkHit = { minutes, newlyBeaten };
+  });
+}
+
+// ---------- Social: contactos con avatar + interacciones por WhatsApp / llamada ----------
+/** Deja solo digitos (formato internacional sin '+', como pide wa.me). */
+export const cleanPhone = (raw) => String(raw ?? '').replace(/\D/g, '');
+
+export function saveContact({ id = null, name, phone, avatar }) {
+  const contact = { id: id ?? uid(), name: name.trim(), phone: cleanPhone(phone), avatar: { ...avatar } };
+  store.update((s) => {
+    const p = active(s);
+    const i = p.contacts.findIndex((c) => c.id === contact.id);
+    if (i >= 0) p.contacts[i] = { ...p.contacts[i], ...contact };
+    else p.contacts.push({ ...contact, createdAt: new Date().toISOString() });
+  });
+  return contact;
+}
+export function removeContact(id) {
+  store.update((s) => { active(s).contacts = active(s).contacts.filter((c) => c.id !== id); });
+}
+
+/**
+ * Registra una interaccion social ('message' | 'call'). Da XP de Social solo la primera vez
+ * por contacto y tipo cada dia, con tope diario, para que no se pueda farmear. Siempre queda en
+ * el historial (`p.interactions`).
+ */
+export function logInteraction(contactId, kind) {
+  return act((p, ev) => {
+    const contact = p.contacts.find((c) => c.id === contactId);
+    if (!contact || !SOCIAL_XP[kind]) return;
+    const day = today(p);
+    const todays = p.interactions.filter((i) => i.date === day);
+    const repeated = todays.some((i) => i.contactId === contactId && i.kind === kind && i.xp > 0);
+    const earnedToday = todays.reduce((n, i) => n + i.xp, 0);
+    const xp = repeated ? 0 : Math.max(0, Math.min(SOCIAL_XP[kind], SOCIAL_MAX_XP_PER_DAY - earnedToday));
+    p.interactions.push({ id: uid(), contactId, kind, date: day, at: new Date().toISOString(), xp });
+    p.interactions = p.interactions.slice(-500);
+    if (xp > 0) grantXp(p, 'social', xp, ev);
+    ev.interaction = { xp, repeated, capped: !repeated && xp === 0 };
   });
 }
 
