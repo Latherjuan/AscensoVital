@@ -66,7 +66,8 @@ export function render({ profile: p, today }) {
   const sensorOn = isStepSensorOn();
 
   const arena = target ? (() => {
-    const pct = Math.min(1, walked / target.minutes);
+    const progress = walked - preview.total;
+    const pct = Math.min(1, progress / target.minutes);
     const st = bossState(Math.round(100 * (1 - pct)), 100);
     return `
       <div class="arena">
